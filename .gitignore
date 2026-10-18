@@ -1,0 +1,55 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+
+## NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+/packages/
+!packages/build/
+
+## Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## .NET user/IDE files
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.rsuser
+.vs/
+
+## Rider / ReSharper
+.idea/
+*.iml
+_ReSharper.Caches/
+/_ReSharper.Caches/
+
+## MSBuild
+*.binlog
+project.lock.json
+project.fragment.lock.json
+
+## Publish output
+publish/
+*.publishsettings
+PublishProfiles/
+
+## OS files
+.DS_Store
+Thumbs.db
+desktop.ini
