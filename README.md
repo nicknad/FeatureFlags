@@ -184,9 +184,18 @@ Inject `IFeatureFlagRefresher` and call `RefreshAsync()` to publish a new snapsh
 ```csharp
 public sealed class FlagAdmin(IFeatureFlagRefresher refresher)
 {
-    public Task ReloadAsync(CancellationToken ct) => refresher.RefreshAsync(ct);
+    public async Task<bool> ReloadAsync(CancellationToken ct)
+    {
+        var result = await refresher.RefreshAsync(ct);
+        return result.Updated;
+    }
 }
 ```
+
+`FeatureFlagRefreshOutcome` is `Updated`, `Unchanged` (the provider reported a version that is
+already published), or `AlreadyInProgress` (another refresh is running; this call returns
+immediately). Provider and validation failures still throw; the hosted service catches and logs
+them and retains the last-good snapshot.
 
 ### Inspecting the current snapshot
 
@@ -195,14 +204,24 @@ The evaluator also implements `IFeatureFlagSnapshotSource`:
 ```csharp
 public interface IFeatureFlagSnapshotSource
 {
-    FeatureFlagSnapshot GetSnapshot();
     event EventHandler<FeatureFlagSnapshotChangedEventArgs>? Changed;
+    bool IsLoaded { get; }
+    FeatureFlagSnapshot GetSnapshot();
+    Task WaitForLoadedAsync(CancellationToken cancellationToken = default);
 }
 ```
 
 - `GetSnapshot()` returns the last published snapshot (flags plus its `Version`), or an empty snapshot before the first successful refresh.
 - `Changed` fires after a successful publication. A throwing subscriber does not fail the refresh; the failure is reported through `Trace`.
 - When consecutive refreshes report the same non-empty `Version`, publication (and validation) is skipped. Providers that do not supply a version are republished on every refresh.
+- `IsLoaded` is `false` until a snapshot has been published; `WaitForLoadedAsync` completes on the first successful publication and honors cancellation. Use it at startup when evaluations must be deterministic.
+
+```csharp
+public sealed class Startup(IFeatureFlagSnapshotSource source)
+{
+    public Task EnsureLoadedAsync(CancellationToken ct) => source.WaitForLoadedAsync(ct);
+}
+```
 
 ## Robustness and security
 

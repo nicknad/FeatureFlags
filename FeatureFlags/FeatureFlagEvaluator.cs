@@ -9,6 +9,9 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
         string.Empty,
         ImmutableDictionary.Create<string, FeatureFlagDefinition>(StringComparer.Ordinal));
 
+    private readonly TaskCompletionSource<bool> _loaded =
+        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
     private FeatureFlagSnapshot _snapshot = EmptySnapshot;
 
     public FeatureFlagEvaluator()
@@ -25,6 +28,8 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
 
     public event EventHandler<FeatureFlagSnapshotChangedEventArgs>? Changed;
 
+    public bool IsLoaded => _loaded.Task.IsCompleted;
+
     public bool IsEnabled(string key, FeatureFlagContext? context = null)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -39,7 +44,27 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
 
     public FeatureFlagSnapshot GetSnapshot() => Volatile.Read(ref _snapshot);
 
-    internal void Publish(string version, IEnumerable<FeatureFlagDefinition> definitions)
+    public async Task WaitForLoadedAsync(CancellationToken cancellationToken = default)
+    {
+        if (IsLoaded)
+        {
+            return;
+        }
+
+        if (!cancellationToken.CanBeCanceled)
+        {
+            await _loaded.Task.ConfigureAwait(false);
+            return;
+        }
+
+        var cancellation = Task.Delay(Timeout.Infinite, cancellationToken);
+
+        await Task.WhenAny(_loaded.Task, cancellation).ConfigureAwait(false);
+
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    internal bool Publish(string version, IEnumerable<FeatureFlagDefinition> definitions)
     {
         Guard.NotNull(version, nameof(version));
         Guard.NotNull(definitions, nameof(definitions));
@@ -48,7 +73,8 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
 
         if (!string.IsNullOrEmpty(version) && string.Equals(version, current.Version, StringComparison.Ordinal))
         {
-            return;
+            _loaded.TrySetResult(true);
+            return false;
         }
 
         var builder = ImmutableDictionary.CreateBuilder<string, FeatureFlagDefinition>(StringComparer.Ordinal);
@@ -68,8 +94,11 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
         var snapshot = new FeatureFlagSnapshot(version, builder.ToImmutable());
 
         Interlocked.Exchange(ref _snapshot, snapshot);
+        _loaded.TrySetResult(true);
 
         RaiseChanged(snapshot);
+
+        return true;
     }
 
     private static FeatureFlagDefinition Freeze(FeatureFlagDefinition definition)

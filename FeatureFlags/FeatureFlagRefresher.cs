@@ -17,11 +17,11 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
         _evaluator = evaluator;
     }
 
-    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    public async Task<FeatureFlagRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.CompareExchange(ref _refreshing, 1, 0) != 0)
         {
-            return;
+            return new FeatureFlagRefreshResult(FeatureFlagRefreshOutcome.AlreadyInProgress);
         }
 
         try
@@ -33,7 +33,11 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
             Guard.NotNull(snapshot, nameof(snapshot));
             Guard.NotNull(snapshot.Flags, $"{nameof(snapshot)}.{nameof(snapshot.Flags)}");
 
-            _evaluator.Publish(snapshot.Version, snapshot.Flags.Values);
+            var updated = _evaluator.Publish(snapshot.Version, snapshot.Flags.Values);
+
+            return new FeatureFlagRefreshResult(
+                updated ? FeatureFlagRefreshOutcome.Updated : FeatureFlagRefreshOutcome.Unchanged,
+                snapshot.Version);
         }
         finally
         {
