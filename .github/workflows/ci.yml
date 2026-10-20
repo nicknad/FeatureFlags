@@ -28,17 +28,27 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.0.0-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Restore
         run: dotnet restore FeatureFlags.slnx
 
       - name: Build
-        run: dotnet build FeatureFlags.slnx -c Release --no-restore
+        run: dotnet build FeatureFlags.slnx -c Release --no-restore -p:Version=${{ steps.version.outputs.value }}
 
       - name: Test
         run: dotnet test FeatureFlags.slnx -c Release --no-build --nologo
 
       - name: Pack
-        run: dotnet pack FeatureFlags/FeatureFlags.csproj -c Release --no-build -o artifacts
+        run: dotnet pack FeatureFlags/FeatureFlags.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.value }}
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
