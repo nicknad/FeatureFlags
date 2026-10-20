@@ -8,20 +8,14 @@ public static class FeatureFlagsServiceCollectionExtensions
 {
     public static IServiceCollection AddFeatureFlags<TProvider>(
         this IServiceCollection services,
-        Action<FeatureFlagOptions>? configure = null)
-        where TProvider : class, IFeatureFlagProvider
-        => AddFeatureFlags<TProvider>(services, configure, enableBackgroundRefresh: true);
-
-    public static IServiceCollection AddFeatureFlags<TProvider>(
-        this IServiceCollection services,
-        Action<FeatureFlagOptions>? configure,
-        bool enableBackgroundRefresh)
+        Action<FeatureFlagOptions>? configure = null,
+        bool enableBackgroundRefresh = true)
         where TProvider : class, IFeatureFlagProvider
     {
         Guard.NotNull(services, nameof(services));
 
-        services.TryAddSingleton<TProvider>();
-        services.TryAddSingleton<IFeatureFlagProvider>(static sp => sp.GetRequiredService<TProvider>());
+        services.TryAddScoped<TProvider>();
+        services.TryAddScoped<IFeatureFlagProvider>(static sp => sp.GetRequiredService<TProvider>());
 
         return AddFeatureFlagsCore(services, configure, enableBackgroundRefresh);
     }
@@ -35,7 +29,7 @@ public static class FeatureFlagsServiceCollectionExtensions
         Guard.NotNull(services, nameof(services));
         Guard.NotNull(providerFactory, nameof(providerFactory));
 
-        services.TryAddSingleton<IFeatureFlagProvider>(providerFactory);
+        services.TryAddScoped<IFeatureFlagProvider>(providerFactory);
 
         return AddFeatureFlagsCore(services, configure, enableBackgroundRefresh);
     }
