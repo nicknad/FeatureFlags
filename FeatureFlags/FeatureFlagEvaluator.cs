@@ -3,6 +3,9 @@ using System.Diagnostics;
 
 namespace NN.FeatureFlags;
 
+/// <summary>
+/// Evaluates feature flags against an immutable in-memory snapshot.
+/// </summary>
 public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSnapshotSource
 {
     private static readonly FeatureFlagSnapshot EmptySnapshot = new FeatureFlagSnapshot(
@@ -14,10 +17,17 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
 
     private FeatureFlagSnapshot _snapshot = EmptySnapshot;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FeatureFlagEvaluator"/> class with an empty snapshot.
+    /// </summary>
     public FeatureFlagEvaluator()
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FeatureFlagEvaluator"/> class with an initial snapshot.
+    /// </summary>
+    /// <param name="snapshot">The snapshot to publish. It is validated immediately.</param>
     public FeatureFlagEvaluator(FeatureFlagSnapshot snapshot)
     {
         Guard.NotNull(snapshot, nameof(snapshot));
@@ -26,18 +36,24 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
         Publish(snapshot.Version, snapshot.Flags.Values);
     }
 
+    /// <inheritdoc/>
     public event EventHandler<FeatureFlagSnapshotChangedEventArgs>? Changed;
 
+    /// <inheritdoc/>
     public bool IsLoaded => _loaded.Task.IsCompleted;
 
+    /// <inheritdoc/>
     public bool IsEnabled(string key, FeatureFlagContext? context = null)
         => EvaluateOrDefault(key, context, defaultValue: false);
 
+    /// <inheritdoc/>
     public bool IsEnabled(string key, bool defaultValue, FeatureFlagContext? context = null)
         => EvaluateOrDefault(key, context, defaultValue);
 
+    /// <inheritdoc/>
     public FeatureFlagSnapshot GetSnapshot() => Volatile.Read(ref _snapshot);
 
+    /// <inheritdoc/>
     public async Task WaitForLoadedAsync(CancellationToken cancellationToken = default)
     {
         if (IsLoaded)

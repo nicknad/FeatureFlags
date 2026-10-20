@@ -1,10 +1,24 @@
 namespace NN.FeatureFlags;
 
+/// <summary>
+/// Controls who may see an enabled flag. Conditions are OR-ed: an allow-list match or a successful
+/// rollout includes the subject.
+/// </summary>
+/// <param name="TenantAllowList">Tenants that are always included.</param>
+/// <param name="UserAllowList">Users that are always included.</param>
+/// <param name="RolloutPercentage">
+/// The percentage (0-100) of targeting keys included, or <see langword="null"/> to disable rollout.
+/// </param>
 public sealed record TargetingPolicy(
     IReadOnlyCollection<string>? TenantAllowList = null,
     IReadOnlyCollection<string>? UserAllowList = null,
     int? RolloutPercentage = null)
 {
+    /// <summary>
+    /// Creates a policy that allows the specified tenants and no one else.
+    /// </summary>
+    /// <param name="tenantIds">The tenant identifiers to include.</param>
+    /// <returns>A tenant allow-list policy.</returns>
     public static TargetingPolicy ForTenants(params string[] tenantIds)
     {
         Guard.NotNull(tenantIds, nameof(tenantIds));
@@ -12,6 +26,11 @@ public sealed record TargetingPolicy(
         return new TargetingPolicy(TenantAllowList: tenantIds);
     }
 
+    /// <summary>
+    /// Creates a policy that allows the specified users and no one else.
+    /// </summary>
+    /// <param name="userIds">The user identifiers to include.</param>
+    /// <returns>A user allow-list policy.</returns>
     public static TargetingPolicy ForUsers(params string[] userIds)
     {
         Guard.NotNull(userIds, nameof(userIds));
@@ -19,6 +38,12 @@ public sealed record TargetingPolicy(
         return new TargetingPolicy(UserAllowList: userIds);
     }
 
+    /// <summary>
+    /// Creates a percentage-rollout policy.
+    /// </summary>
+    /// <param name="percentage">The percentage of targeting keys to include, from 0 to 100.</param>
+    /// <returns>A percentage-rollout policy.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The percentage is outside 0-100.</exception>
     public static TargetingPolicy Percentage(int percentage)
     {
         if (percentage is < 0 or > 100)
@@ -32,6 +57,7 @@ public sealed record TargetingPolicy(
         return new TargetingPolicy(RolloutPercentage: percentage);
     }
 
+    /// <inheritdoc/>
     public bool Equals(TargetingPolicy? other)
     {
         return other is not null
@@ -40,6 +66,7 @@ public sealed record TargetingPolicy(
             && SetEquals(UserAllowList, other.UserAllowList);
     }
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         unchecked

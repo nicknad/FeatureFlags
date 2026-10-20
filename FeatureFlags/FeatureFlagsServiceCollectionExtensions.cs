@@ -4,8 +4,21 @@ using Microsoft.Extensions.Hosting;
 
 namespace NN.FeatureFlags;
 
+/// <summary>
+/// Registers feature-flag evaluation and synchronization services.
+/// </summary>
 public static class FeatureFlagsServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers a provider type, the evaluator, the refresher, and (optionally) the background refresh service.
+    /// </summary>
+    /// <typeparam name="TProvider">The provider type. It is resolved from a new scope on every refresh.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">An optional configuration callback for <see cref="FeatureFlagOptions"/>.</param>
+    /// <param name="enableBackgroundRefresh">
+    /// Whether to register the hosted service that loads flags at startup and refreshes on an interval.
+    /// </param>
+    /// <returns>The service collection.</returns>
     public static IServiceCollection AddFeatureFlags<TProvider>(
         this IServiceCollection services,
         Action<FeatureFlagOptions>? configure = null,
@@ -20,6 +33,16 @@ public static class FeatureFlagsServiceCollectionExtensions
         return AddFeatureFlagsCore(services, configure, enableBackgroundRefresh);
     }
 
+    /// <summary>
+    /// Registers a provider factory, the evaluator, the refresher, and (optionally) the background refresh service.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="providerFactory">The factory used to create a provider for each refresh.</param>
+    /// <param name="configure">An optional configuration callback for <see cref="FeatureFlagOptions"/>.</param>
+    /// <param name="enableBackgroundRefresh">
+    /// Whether to register the hosted service that loads flags at startup and refreshes on an interval.
+    /// </param>
+    /// <returns>The service collection.</returns>
     public static IServiceCollection AddFeatureFlags(
         this IServiceCollection services,
         Func<IServiceProvider, IFeatureFlagProvider> providerFactory,
@@ -34,6 +57,16 @@ public static class FeatureFlagsServiceCollectionExtensions
         return AddFeatureFlagsCore(services, configure, enableBackgroundRefresh);
     }
 
+    /// <summary>
+    /// Registers a provider instance, the evaluator, the refresher, and (optionally) the background refresh service.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="provider">The provider instance.</param>
+    /// <param name="configure">An optional configuration callback for <see cref="FeatureFlagOptions"/>.</param>
+    /// <param name="enableBackgroundRefresh">
+    /// Whether to register the hosted service that loads flags at startup and refreshes on an interval.
+    /// </param>
+    /// <returns>The service collection.</returns>
     public static IServiceCollection AddFeatureFlags(
         this IServiceCollection services,
         IFeatureFlagProvider provider,

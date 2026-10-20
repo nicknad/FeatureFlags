@@ -2,6 +2,11 @@ using System.Collections.Immutable;
 
 namespace NN.FeatureFlags;
 
+/// <summary>
+/// Describes the subject of a feature-flag evaluation.
+/// </summary>
+/// <param name="UserId">The user identifier, used by user allow-lists and as the default targeting key.</param>
+/// <param name="TenantId">The tenant identifier, used by tenant allow-lists.</param>
 public sealed record FeatureFlagContext(
     string? UserId = null,
     string? TenantId = null)
@@ -10,12 +15,13 @@ public sealed record FeatureFlagContext(
         ImmutableDictionary<string, string>.Empty;
 
     /// <summary>
-    /// Stable identity used for percentage bucketing. Defaults to <see cref="UserId"/> when not set.
+    /// Gets or sets a stable identity used for percentage bucketing.
+    /// When empty, evaluation falls back to <see cref="UserId"/>.
     /// </summary>
     public string? TargetingKey { get; init; }
 
     /// <summary>
-    /// Additional subject attributes available to targeting rules.
+    /// Gets or sets additional subject attributes. The dictionary is copied on assignment.
     /// </summary>
     public IReadOnlyDictionary<string, string> Attributes
     {
