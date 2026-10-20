@@ -31,16 +31,10 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
     public bool IsLoaded => _loaded.Task.IsCompleted;
 
     public bool IsEnabled(string key, FeatureFlagContext? context = null)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return false;
-        }
+        => EvaluateOrDefault(key, context, defaultValue: false);
 
-        var snapshot = Volatile.Read(ref _snapshot);
-
-        return snapshot.Flags.TryGetValue(key, out var flag) && Evaluate(flag, context);
-    }
+    public bool IsEnabled(string key, bool defaultValue, FeatureFlagContext? context = null)
+        => EvaluateOrDefault(key, context, defaultValue);
 
     public FeatureFlagSnapshot GetSnapshot() => Volatile.Read(ref _snapshot);
 
@@ -214,6 +208,20 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
         return values is ImmutableHashSet<string> set
             ? set.Contains(value)
             : values.Contains(value, StringComparer.Ordinal);
+    }
+
+    private bool EvaluateOrDefault(string key, FeatureFlagContext? context, bool defaultValue)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return false;
+        }
+
+        var snapshot = Volatile.Read(ref _snapshot);
+
+        return snapshot.Flags.TryGetValue(key, out var flag)
+            ? Evaluate(flag, context)
+            : defaultValue;
     }
 
     private void RaiseChanged(FeatureFlagSnapshot snapshot)

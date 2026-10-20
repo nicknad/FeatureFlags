@@ -114,6 +114,16 @@ Notes:
 - Allow-lists and rollout are **OR** conditions; `IsEnabled` is a master gate.
 - `null` targeting means unrestricted; an explicitly configured policy means targeted access.
 - A tenant-only context cannot participate in a **partial** (0 < p < 100) rollout → `false`.
+- Unknown keys are fail-closed. Use `IsEnabled("key", defaultValue: true, context)` when an
+  unknown flag should fail open; blank keys always return `false`.
+
+Targeting policies have factories for the common single-dimension cases:
+
+```csharp
+TargetingPolicy.ForTenants("acme", "globex"); // allow-list only
+TargetingPolicy.ForUsers("user-42");          // allow-list only
+TargetingPolicy.Percentage(25);               // percentage only
+```
 
 ### Partial (percentage) rollout
 
@@ -175,7 +185,9 @@ public sealed class FeatureFlagOptions
 - The provider is resolved from a DI scope on every refresh, so scoped providers are supported.
 - Concurrent refreshes are coalesced; an in-flight refresh makes later callers return immediately.
 - Refresh failures are logged and the previous (last-good) snapshot is retained.
-- Non-positive interval/timeout values are clamped to the defaults and logged.
+- Options are validated on host startup: a non-positive `RefreshInterval` or `RefreshTimeout` fails
+  startup. As a fallback (for example when constructing the service directly), non-positive values
+  are clamped to the defaults and logged; values above ~24.8 days are clamped.
 
 ### Refreshing on demand
 

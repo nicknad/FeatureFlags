@@ -5,6 +5,33 @@ public sealed record TargetingPolicy(
     IReadOnlyCollection<string>? UserAllowList = null,
     int? RolloutPercentage = null)
 {
+    public static TargetingPolicy ForTenants(params string[] tenantIds)
+    {
+        Guard.NotNull(tenantIds, nameof(tenantIds));
+
+        return new TargetingPolicy(TenantAllowList: tenantIds);
+    }
+
+    public static TargetingPolicy ForUsers(params string[] userIds)
+    {
+        Guard.NotNull(userIds, nameof(userIds));
+
+        return new TargetingPolicy(UserAllowList: userIds);
+    }
+
+    public static TargetingPolicy Percentage(int percentage)
+    {
+        if (percentage is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(percentage),
+                percentage,
+                "Rollout percentage must be between 0 and 100.");
+        }
+
+        return new TargetingPolicy(RolloutPercentage: percentage);
+    }
+
     public bool Equals(TargetingPolicy? other)
     {
         return other is not null

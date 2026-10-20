@@ -59,7 +59,14 @@ public static class FeatureFlagsServiceCollectionExtensions
         Action<FeatureFlagOptions>? configure,
         bool enableBackgroundRefresh)
     {
-        services.AddOptions<FeatureFlagOptions>();
+        services.AddOptions<FeatureFlagOptions>()
+            .Validate(
+                static options => options.RefreshInterval > TimeSpan.Zero,
+                "FeatureFlagOptions.RefreshInterval must be positive.")
+            .Validate(
+                static options => options.RefreshTimeout > TimeSpan.Zero,
+                "FeatureFlagOptions.RefreshTimeout must be positive.")
+            .ValidateOnStart();
 
         if (configure is not null)
         {
