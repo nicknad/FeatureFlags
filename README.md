@@ -2,7 +2,7 @@
 
 A small, dependency-light feature-flag library for .NET Standard 2.0 and .NET 8+. It separates three concerns cleanly:
 
-- **Evaluation** — a synchronous, allocation-light, thread-safe evaluator that never does I/O.
+- **Evaluation** — a synchronous, thread-safe evaluator that never does I/O. Unconditional flags are lookup-only; partial rollouts hash the flag key and targeting key per call.
 - **Targeting** — typed, validated policies (tenant/user allow-lists and deterministic percentage rollout).
 - **Synchronization** — a provider abstraction plus a background refresher that atomically publishes new snapshots.
 
