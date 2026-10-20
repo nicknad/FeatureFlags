@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace NN.FeatureFlags;
 
-public sealed partial class FeatureFlagRefreshService : BackgroundService
+internal sealed partial class FeatureFlagRefreshService : BackgroundService
 {
     private static readonly TimeSpan DefaultInterval = TimeSpan.FromSeconds(120);
     private static readonly TimeSpan MaxDuration = TimeSpan.FromMilliseconds(int.MaxValue);

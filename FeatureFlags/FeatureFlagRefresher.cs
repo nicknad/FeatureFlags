@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace NN.FeatureFlags;
 
-public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
+internal sealed class FeatureFlagRefresher : IFeatureFlagRefresher
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
