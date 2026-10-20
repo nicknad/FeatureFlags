@@ -34,6 +34,9 @@ jobs:
       - name: Build
         run: dotnet build FeatureFlags.slnx -c Release --no-restore
 
+      - name: Test
+        run: dotnet test FeatureFlags.slnx -c Release --no-build --nologo
+
       - name: Pack
         run: dotnet pack FeatureFlags/FeatureFlags.csproj -c Release --no-build -o artifacts
 

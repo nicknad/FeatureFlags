@@ -36,7 +36,20 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
 
         lock (_gate)
         {
-            refresh = _inFlight ??= RefreshCoreAsync(Interlocked.Increment(ref _generation));
+            if (_inFlight is null)
+            {
+                var completion = new TaskCompletionSource<FeatureFlagRefreshResult>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+                refresh = completion.Task;
+                _inFlight = refresh;
+
+                _ = RunAsync(Interlocked.Increment(ref _generation), completion);
+            }
+            else
+            {
+                refresh = _inFlight;
+            }
         }
 
         return WaitAsync(refresh, cancellationToken);
@@ -79,6 +92,18 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    private async Task RunAsync(long generation, TaskCompletionSource<FeatureFlagRefreshResult> completion)
+    {
+        try
+        {
+            completion.TrySetResult(await RefreshCoreAsync(generation).ConfigureAwait(false));
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
+        }
     }
 
     private async Task<FeatureFlagRefreshResult> RefreshCoreAsync(long generation)
