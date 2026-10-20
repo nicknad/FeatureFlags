@@ -23,6 +23,7 @@ public static class FeatureFlagsServiceCollectionExtensions
         services.TryAddSingleton<IFeatureFlagProvider>(static sp => sp.GetRequiredService<TProvider>());
         services.TryAddSingleton<FeatureFlagEvaluator>();
         services.TryAddSingleton<IFeatureFlagEvaluator>(static sp => sp.GetRequiredService<FeatureFlagEvaluator>());
+        services.TryAddSingleton<IFeatureFlagSnapshotSource>(static sp => sp.GetRequiredService<FeatureFlagEvaluator>());
         services.TryAddSingleton<IFeatureFlagRefresher, FeatureFlagRefresher>();
         services.AddHostedService<FeatureFlagRefreshService>();
 

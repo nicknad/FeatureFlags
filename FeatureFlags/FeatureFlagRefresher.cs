@@ -33,7 +33,7 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
             Guard.NotNull(snapshot, nameof(snapshot));
             Guard.NotNull(snapshot.Flags, $"{nameof(snapshot)}.{nameof(snapshot.Flags)}");
 
-            _evaluator.Publish(snapshot.Flags.Values);
+            _evaluator.Publish(snapshot.Version, snapshot.Flags.Values);
         }
         finally
         {

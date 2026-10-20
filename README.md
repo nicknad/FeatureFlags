@@ -171,6 +171,22 @@ public sealed class FlagAdmin(IFeatureFlagRefresher refresher)
 }
 ```
 
+### Inspecting the current snapshot
+
+The evaluator also implements `IFeatureFlagSnapshotSource`:
+
+```csharp
+public interface IFeatureFlagSnapshotSource
+{
+    FeatureFlagSnapshot GetSnapshot();
+    event EventHandler<FeatureFlagSnapshotChangedEventArgs>? Changed;
+}
+```
+
+- `GetSnapshot()` returns the last published snapshot (flags plus its `Version`), or an empty snapshot before the first successful refresh.
+- `Changed` fires after a successful publication. A throwing subscriber does not fail the refresh; the failure is reported through `Trace`.
+- When consecutive refreshes report the same non-empty `Version`, publication (and validation) is skipped. Providers that do not supply a version are republished on every refresh.
+
 ## Robustness and security
 
 - **Atomic publication.** Snapshots are validated and frozen before an atomic swap, so readers never observe a partially updated configuration.

@@ -1,11 +1,17 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace NN.FeatureFlags;
 
-public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
+public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSnapshotSource
 {
-    private ImmutableDictionary<string, FeatureFlagDefinition> _flags =
-        ImmutableDictionary.Create<string, FeatureFlagDefinition>(StringComparer.Ordinal);
+    private static readonly FeatureFlagSnapshot EmptySnapshot = new FeatureFlagSnapshot(
+        string.Empty,
+        ImmutableDictionary.Create<string, FeatureFlagDefinition>(StringComparer.Ordinal));
+
+    private FeatureFlagSnapshot _snapshot = EmptySnapshot;
+
+    public event EventHandler<FeatureFlagSnapshotChangedEventArgs>? Changed;
 
     public bool IsEnabled(string key, FeatureFlagContext? context = null)
     {
@@ -14,14 +20,24 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
             return false;
         }
 
-        var flags = Volatile.Read(ref _flags);
+        var snapshot = Volatile.Read(ref _snapshot);
 
-        return flags.TryGetValue(key, out var flag) && Evaluate(flag, context);
+        return snapshot.Flags.TryGetValue(key, out var flag) && Evaluate(flag, context);
     }
 
-    internal void Publish(IEnumerable<FeatureFlagDefinition> definitions)
+    public FeatureFlagSnapshot GetSnapshot() => Volatile.Read(ref _snapshot);
+
+    internal void Publish(string version, IEnumerable<FeatureFlagDefinition> definitions)
     {
+        Guard.NotNull(version, nameof(version));
         Guard.NotNull(definitions, nameof(definitions));
+
+        var current = Volatile.Read(ref _snapshot);
+
+        if (!string.IsNullOrEmpty(version) && string.Equals(version, current.Version, StringComparison.Ordinal))
+        {
+            return;
+        }
 
         var builder = ImmutableDictionary.CreateBuilder<string, FeatureFlagDefinition>(StringComparer.Ordinal);
 
@@ -37,7 +53,11 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
             builder.Add(flag.Key, flag);
         }
 
-        Interlocked.Exchange(ref _flags, builder.ToImmutable());
+        var snapshot = new FeatureFlagSnapshot(version, builder.ToImmutable());
+
+        Interlocked.Exchange(ref _snapshot, snapshot);
+
+        RaiseChanged(snapshot);
     }
 
     private static FeatureFlagDefinition Freeze(FeatureFlagDefinition definition)
@@ -153,5 +173,29 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
         return values is ImmutableHashSet<string> set
             ? set.Contains(value)
             : values.Contains(value, StringComparer.Ordinal);
+    }
+
+    private void RaiseChanged(FeatureFlagSnapshot snapshot)
+    {
+        var handlers = Changed;
+
+        if (handlers is null)
+        {
+            return;
+        }
+
+        var args = new FeatureFlagSnapshotChangedEventArgs(snapshot);
+
+        foreach (var handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                ((EventHandler<FeatureFlagSnapshotChangedEventArgs>)handler)(this, args);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError($"A feature flag snapshot change subscriber failed: {exception}");
+            }
+        }
     }
 }
