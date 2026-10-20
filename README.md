@@ -64,6 +64,23 @@ builder.Services.AddFeatureFlags<InMemoryProvider>(options =>
 
 `AddFeatureFlags<TProvider>` registers the provider, the evaluator, the refresher, and a hosted
 service that performs an initial refresh (off the startup thread) and then refreshes on the interval.
+The hosted service is registered once, so calling the method more than once does not start a second poller.
+
+Prefer to supply the provider yourself? The same services are wired by the other overloads:
+
+```csharp
+// A provider instance.
+builder.Services.AddFeatureFlags(new InMemoryFeatureFlagProvider());
+
+// A provider factory, invoked once by the container.
+builder.Services.AddFeatureFlags(sp => new SqlFlagProvider(sp.GetRequiredService<AppDb>()));
+
+// No background polling: call IFeatureFlagRefresher.RefreshAsync yourself (tests, workers).
+builder.Services.AddFeatureFlags(new InMemoryFeatureFlagProvider(), enableBackgroundRefresh: false);
+```
+
+An `InMemoryFeatureFlagProvider` ships with the package for tests and simple hosts. Replace its
+`Snapshot` property to publish new definitions.
 
 ### 3. Evaluate
 

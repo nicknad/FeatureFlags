@@ -11,6 +11,18 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator, IFeatureFlagSn
 
     private FeatureFlagSnapshot _snapshot = EmptySnapshot;
 
+    public FeatureFlagEvaluator()
+    {
+    }
+
+    public FeatureFlagEvaluator(FeatureFlagSnapshot snapshot)
+    {
+        Guard.NotNull(snapshot, nameof(snapshot));
+        Guard.NotNull(snapshot.Flags, $"{nameof(snapshot)}.{nameof(snapshot.Flags)}");
+
+        Publish(snapshot.Version, snapshot.Flags.Values);
+    }
+
     public event EventHandler<FeatureFlagSnapshotChangedEventArgs>? Changed;
 
     public bool IsEnabled(string key, FeatureFlagContext? context = null)
