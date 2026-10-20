@@ -10,8 +10,8 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
 
     public FeatureFlagRefresher(IServiceScopeFactory scopeFactory, FeatureFlagEvaluator evaluator)
     {
-        ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(evaluator);
+        Guard.NotNull(scopeFactory, nameof(scopeFactory));
+        Guard.NotNull(evaluator, nameof(evaluator));
 
         _scopeFactory = scopeFactory;
         _evaluator = evaluator;
@@ -29,6 +29,9 @@ public sealed class FeatureFlagRefresher : IFeatureFlagRefresher
             using var scope = _scopeFactory.CreateScope();
             var provider = scope.ServiceProvider.GetRequiredService<IFeatureFlagProvider>();
             var snapshot = await provider.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+
+            Guard.NotNull(snapshot, nameof(snapshot));
+            Guard.NotNull(snapshot.Flags, $"{nameof(snapshot)}.{nameof(snapshot.Flags)}");
 
             _evaluator.Publish(snapshot.Flags.Values);
         }

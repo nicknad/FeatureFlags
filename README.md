@@ -1,6 +1,6 @@
 # NN.FeatureFlags
 
-A small, dependency-light feature-flag library for .NET 10. It separates three concerns cleanly:
+A small, dependency-light feature-flag library for .NET Standard 2.0 and .NET 8+. It separates three concerns cleanly:
 
 - **Evaluation** — a synchronous, allocation-light, thread-safe evaluator that never does I/O.
 - **Targeting** — typed, validated policies (tenant/user allow-lists and deterministic percentage rollout).
@@ -16,6 +16,13 @@ A small, dependency-light feature-flag library for .NET 10. It separates three c
 - Fail-closed: unknown flags and unloaded configuration evaluate to `false`.
 - Background refresh with a configurable interval and timeout.
 
+## Installation
+
+```shell
+dotnet add package NN.FeatureFlags
+```
+
+Targets `netstandard2.0`, `net8.0`, `net9.0`, and `net10.0`.
 
 ## Quick start
 
@@ -91,6 +98,36 @@ Notes:
 - `null` targeting means unrestricted; an explicitly configured policy means targeted access.
 - A tenant-only context cannot participate in a **partial** (0 < p < 100) rollout → `false`.
 
+### Partial (percentage) rollout
+
+Set `RolloutPercentage` to a value between `0` and `100` to slowly ramp a feature. Allow-lists always
+take precedence, so you can keep specific tenants/users on and roll out to everyone else by percentage:
+
+```csharp
+var definition = new FeatureFlagDefinition(
+    Key: "new-checkout",
+    IsEnabled: true,
+    Targeting: new TargetingPolicy(
+        TenantAllowList: new HashSet<string> { "acme" },    // always on for the acme tenant
+        UserAllowList: new HashSet<string> { "user-42" },   // always on for user-42
+        RolloutPercentage: 25));                            // everyone else: 25% of users
+```
+
+Evaluate it by supplying a stable `UserId`; the bucket is derived from `UserId` and the flag key:
+
+```csharp
+evaluator.IsEnabled("new-checkout", new FeatureFlagContext(UserId: "user-123")); // ~25%
+evaluator.IsEnabled("new-checkout", new FeatureFlagContext(TenantId: "acme"));   // true (allow-list)
+evaluator.IsEnabled("new-checkout", new FeatureFlagContext(TenantId: "other"));  // false (no user)
+```
+
+Notes:
+
+- `0` keeps the rollout off; `100` turns it on for every subject, including anonymous contexts.
+- A **partial** rollout requires a `UserId`; a tenant-only context evaluates to `false`.
+- Bucketing is deterministic (SHA-256 of the flag key and user id) — stable across processes and restarts.
+- It is **not** a secret or an access control; a subject that can choose its own id can influence its bucket.
+
 ## Configuration and synchronization
 
 ```csharp
@@ -118,6 +155,17 @@ public sealed class FlagAdmin(IFeatureFlagRefresher refresher)
     public Task ReloadAsync(CancellationToken ct) => refresher.RefreshAsync(ct);
 }
 ```
+
+## Robustness and security
+
+- **Atomic publication.** Snapshots are validated and frozen before an atomic swap, so readers never observe a partially updated configuration.
+- **Snapshot validation.** A null snapshot or flag map, a duplicate or empty flag key, an out-of-range rollout percentage, or an empty/whitespace allow-list entry is rejected. The refresh fails and the previous last-good snapshot is retained.
+- **Fail-closed evaluation.** Unknown keys, disabled flags, and unloaded configuration evaluate to `false`.
+- **No I/O on the evaluation path.** `IsEnabled` touches only an immutable in-memory snapshot and never blocks.
+- **Bounded timers.** Non-positive interval/timeout values fall back to the defaults; values above ~24.8 days are clamped so timers cannot throw at runtime.
+- **Trust boundary.** `IFeatureFlagProvider` output is trusted input: source flag definitions and allow-lists from a controlled system, never from untrusted user input.
+- **Not an authorization control.** The percentage rollout is deterministic (SHA-256) but not secret; a subject that can choose its own identifier can influence its bucket. Do not use rollout as an access-control or anti-abuse mechanism.
+- **Kill switches.** A failed refresh keeps the last-good snapshot, so a flag that is `true` stays `true`. If a flag acts as a fail-safe kill switch, design the consuming code accordingly.
 
 ## License
 

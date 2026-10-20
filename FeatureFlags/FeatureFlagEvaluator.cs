@@ -21,7 +21,7 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
 
     internal void Publish(IEnumerable<FeatureFlagDefinition> definitions)
     {
-        ArgumentNullException.ThrowIfNull(definitions);
+        Guard.NotNull(definitions, nameof(definitions));
 
         var builder = ImmutableDictionary.CreateBuilder<string, FeatureFlagDefinition>(StringComparer.Ordinal);
 
@@ -29,10 +29,12 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
         {
             var flag = Freeze(definition);
 
-            if (!builder.TryAdd(flag.Key, flag))
+            if (builder.ContainsKey(flag.Key))
             {
                 throw new InvalidOperationException($"Duplicate feature flag key: {flag.Key}");
             }
+
+            builder.Add(flag.Key, flag);
         }
 
         Interlocked.Exchange(ref _flags, builder.ToImmutable());
@@ -66,11 +68,26 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
         };
     }
 
-    private static ImmutableHashSet<string>? Freeze(IReadOnlySet<string>? values)
+    private static ImmutableHashSet<string>? Freeze(IReadOnlyCollection<string>? values)
     {
-        return values is null
-            ? null
-            : ImmutableHashSet.CreateRange(StringComparer.Ordinal, values);
+        if (values is null)
+        {
+            return null;
+        }
+
+        var builder = ImmutableHashSet.CreateBuilder<string>(StringComparer.Ordinal);
+
+        foreach (var value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException("A targeting allow-list contains a null or empty value.");
+            }
+
+            builder.Add(value);
+        }
+
+        return builder.ToImmutable();
     }
 
     private static bool Evaluate(FeatureFlagDefinition flag, FeatureFlagContext? context)
@@ -88,13 +105,13 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
         }
 
         if (context?.TenantId is { } tenantId &&
-            targeting.TenantAllowList?.Contains(tenantId) == true)
+            Contains(targeting.TenantAllowList, tenantId))
         {
             return true;
         }
 
         if (context?.UserId is { } userId &&
-            targeting.UserAllowList?.Contains(userId) == true)
+            Contains(targeting.UserAllowList, userId))
         {
             return true;
         }
@@ -115,5 +132,17 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
         }
 
         return Rollout.Includes(flag.Key, rolloutUserId, percentage);
+    }
+
+    private static bool Contains(IReadOnlyCollection<string>? values, string value)
+    {
+        if (values is null)
+        {
+            return false;
+        }
+
+        return values is ImmutableHashSet<string> set
+            ? set.Contains(value)
+            : values.Contains(value, StringComparer.Ordinal);
     }
 }

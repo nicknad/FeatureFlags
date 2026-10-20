@@ -10,7 +10,7 @@ public static class FeatureFlagsServiceCollectionExtensions
         Action<FeatureFlagOptions>? configure = null)
         where TProvider : class, IFeatureFlagProvider
     {
-        ArgumentNullException.ThrowIfNull(services);
+        Guard.NotNull(services, nameof(services));
 
         services.AddOptions<FeatureFlagOptions>();
 

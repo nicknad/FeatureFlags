@@ -1,8 +1,8 @@
 namespace NN.FeatureFlags;
 
 public sealed record TargetingPolicy(
-    IReadOnlySet<string>? TenantAllowList = null,
-    IReadOnlySet<string>? UserAllowList = null,
+    IReadOnlyCollection<string>? TenantAllowList = null,
+    IReadOnlyCollection<string>? UserAllowList = null,
     int? RolloutPercentage = null)
 {
     public bool Equals(TargetingPolicy? other)
@@ -15,35 +15,43 @@ public sealed record TargetingPolicy(
 
     public override int GetHashCode()
     {
-        var hash = default(HashCode);
-        hash.Add(RolloutPercentage);
-        AddSet(ref hash, TenantAllowList);
-        AddSet(ref hash, UserAllowList);
-        return hash.ToHashCode();
+        unchecked
+        {
+            var hash = RolloutPercentage.GetHashCode();
+            hash = (hash * 397) ^ GetSetHashCode(TenantAllowList);
+            hash = (hash * 397) ^ GetSetHashCode(UserAllowList);
+            return hash;
+        }
     }
 
-    private static bool SetEquals(IReadOnlySet<string>? left, IReadOnlySet<string>? right)
+    private static bool SetEquals(IReadOnlyCollection<string>? left, IReadOnlyCollection<string>? right)
     {
         if (ReferenceEquals(left, right))
         {
             return true;
         }
 
-        return left is not null && right is not null && left.SetEquals(right);
+        if (left is null || right is null || left.Count != right.Count)
+        {
+            return false;
+        }
+
+        return new HashSet<string>(left, StringComparer.Ordinal).SetEquals(right);
     }
 
-    private static void AddSet(ref HashCode hash, IReadOnlySet<string>? values)
+    private static int GetSetHashCode(IReadOnlyCollection<string>? values)
     {
         if (values is null)
         {
-            hash.Add(0);
-            return;
+            return 0;
         }
 
-        hash.Add(values.Count);
-        foreach (var value in values.Order(StringComparer.Ordinal))
+        var hash = values.Count;
+        foreach (var value in values.OrderBy(static value => value, StringComparer.Ordinal))
         {
-            hash.Add(value, StringComparer.Ordinal);
+            hash = unchecked((hash * 397) ^ StringComparer.Ordinal.GetHashCode(value));
         }
+
+        return hash;
     }
 }
