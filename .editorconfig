@@ -170,6 +170,10 @@ dotnet_diagnostic.SA1642.severity = none    # constructor summary should begin w
 dotnet_diagnostic.SA1649.severity = none    # file name should match first type name
 dotnet_diagnostic.SA1651.severity = none    # do not use cref in summary
 
+# Meziantou: System.Threading.Lock is unavailable on netstandard2.0/net8.0, so a single
+# monitor-based gate is used across all targets.
+dotnet_diagnostic.MA0158.severity = none
+
 # -----------------------------------------------------------------------------
 # Generated code
 # -----------------------------------------------------------------------------

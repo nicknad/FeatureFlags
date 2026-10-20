@@ -6,5 +6,5 @@ public enum FeatureFlagRefreshOutcome
 
     Unchanged,
 
-    AlreadyInProgress,
+    Superseded,
 }

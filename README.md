@@ -183,7 +183,8 @@ public sealed class FeatureFlagOptions
 - Configured through the standard Options pattern (`IOptions<FeatureFlagOptions>`), so
   `services.Configure<FeatureFlagOptions>(...)` also works.
 - The provider is resolved from a DI scope on every refresh, so scoped providers are supported.
-- Concurrent refreshes are coalesced; an in-flight refresh makes later callers return immediately.
+- Refreshes are single-flight: concurrent callers await the same in-flight refresh instead of starting another.
+- `RefreshTimeout` bounds the provider call even when the provider ignores cancellation. A timed-out provider is abandoned so later refreshes can proceed, and its late result is never published.
 - Refresh failures are logged and the previous (last-good) snapshot is retained.
 - Options are validated on host startup: a non-positive `RefreshInterval` or `RefreshTimeout` fails
   startup. As a fallback (for example when constructing the service directly), non-positive values
@@ -205,9 +206,9 @@ public sealed class FlagAdmin(IFeatureFlagRefresher refresher)
 ```
 
 `FeatureFlagRefreshOutcome` is `Updated`, `Unchanged` (the provider reported a version that is
-already published), or `AlreadyInProgress` (another refresh is running; this call returns
-immediately). Provider and validation failures still throw; the hosted service catches and logs
-them and retains the last-good snapshot.
+already published), or `Superseded` (a newer refresh took over after this one timed out).
+Provider and validation failures throw; a `TimeoutException` is thrown when the provider exceeds
+`RefreshTimeout`. The hosted service catches and logs them and retains the last-good snapshot.
 
 ### Inspecting the current snapshot
 

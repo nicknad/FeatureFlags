@@ -7,13 +7,11 @@ namespace NN.FeatureFlags;
 public sealed partial class FeatureFlagRefreshService : BackgroundService
 {
     private static readonly TimeSpan DefaultInterval = TimeSpan.FromSeconds(120);
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxDuration = TimeSpan.FromMilliseconds(int.MaxValue);
 
     private readonly IFeatureFlagRefresher _refresher;
     private readonly ILogger<FeatureFlagRefreshService> _logger;
     private readonly TimeSpan _interval;
-    private readonly TimeSpan _timeout;
 
     public FeatureFlagRefreshService(
         IFeatureFlagRefresher refresher,
@@ -29,7 +27,6 @@ public sealed partial class FeatureFlagRefreshService : BackgroundService
 
         var configuration = options.Value;
         _interval = Normalize(configuration.RefreshInterval, DefaultInterval, nameof(FeatureFlagOptions.RefreshInterval));
-        _timeout = Normalize(configuration.RefreshTimeout, DefaultTimeout, nameof(FeatureFlagOptions.RefreshTimeout));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -72,21 +69,17 @@ public sealed partial class FeatureFlagRefreshService : BackgroundService
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
         try
         {
-            timeout.CancelAfter(_timeout);
-
-            await _refresher.RefreshAsync(timeout.Token).ConfigureAwait(false);
+            await _refresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             LogRefreshCanceled();
         }
-        catch (OperationCanceledException)
+        catch (TimeoutException)
         {
-            LogRefreshTimedOut(_timeout);
+            LogRefreshTimedOut();
         }
         catch (Exception exception)
         {
@@ -103,8 +96,8 @@ public sealed partial class FeatureFlagRefreshService : BackgroundService
     [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Feature flag option '{Name}' exceeds the maximum of {Maximum}; using {Maximum}.")]
     private partial void LogDurationTooLarge(string name, TimeSpan maximum);
 
-    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Feature flag refresh exceeded the {Timeout} timeout.")]
-    private partial void LogRefreshTimedOut(TimeSpan timeout);
+    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "Feature flag refresh exceeded its configured timeout.")]
+    private partial void LogRefreshTimedOut();
 
     [LoggerMessage(EventId = 4, Level = LogLevel.Debug, Message = "Feature flag refresh canceled.")]
     private partial void LogRefreshCanceled();
