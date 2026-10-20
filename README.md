@@ -113,18 +113,33 @@ var definition = new FeatureFlagDefinition(
         RolloutPercentage: 25));                            // everyone else: 25% of users
 ```
 
-Evaluate it by supplying a stable `UserId`; the bucket is derived from `UserId` and the flag key:
+Evaluate it by supplying a stable `TargetingKey` (which defaults to `UserId`); the bucket is derived from that key and the flag key:
 
 ```csharp
 evaluator.IsEnabled("new-checkout", new FeatureFlagContext(UserId: "user-123")); // ~25%
 evaluator.IsEnabled("new-checkout", new FeatureFlagContext(TenantId: "acme"));   // true (allow-list)
-evaluator.IsEnabled("new-checkout", new FeatureFlagContext(TenantId: "other"));  // false (no user)
+evaluator.IsEnabled("new-checkout", new FeatureFlagContext(TenantId: "other"));  // false (no targeting key)
+
+// Bucket anonymous/device traffic explicitly:
+evaluator.IsEnabled(
+    "new-checkout",
+    new FeatureFlagContext(TenantId: "other") { TargetingKey = "device-7" });    // ~25%
+```
+
+A context also exposes an `Attributes` bag for custom attributes and a `TargetingKey` override:
+
+```csharp
+var context = new FeatureFlagContext(UserId: "user-123", TenantId: "acme")
+{
+    TargetingKey = "account-42",
+    Attributes = new Dictionary<string, string> { ["region"] = "eu" },
+};
 ```
 
 Notes:
 
 - `0` keeps the rollout off; `100` turns it on for every subject, including anonymous contexts.
-- A **partial** rollout requires a `UserId`; a tenant-only context evaluates to `false`.
+- A **partial** rollout requires a `TargetingKey` (or `UserId`); a tenant-only context without either evaluates to `false`.
 - Bucketing is deterministic (SHA-256 of the flag key and user id) — stable across processes and restarts.
 - It is **not** a secret or an access control; a subject that can choose its own id can influence its bucket.
 

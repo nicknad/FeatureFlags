@@ -116,7 +116,7 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
             return true;
         }
 
-        if (targeting.RolloutPercentage is not { } percentage)
+        if (targeting.RolloutPercentage is not { } percentage || percentage <= 0)
         {
             return false;
         }
@@ -126,12 +126,21 @@ public sealed class FeatureFlagEvaluator : IFeatureFlagEvaluator
             return true;
         }
 
-        if (percentage <= 0 || context?.UserId is not { } rolloutUserId)
+        var targetingKey = GetTargetingKey(context);
+
+        return targetingKey is not null && Rollout.Includes(flag.Key, targetingKey, percentage);
+    }
+
+    private static string? GetTargetingKey(FeatureFlagContext? context)
+    {
+        if (context is null)
         {
-            return false;
+            return null;
         }
 
-        return Rollout.Includes(flag.Key, rolloutUserId, percentage);
+        return string.IsNullOrWhiteSpace(context.TargetingKey)
+            ? context.UserId
+            : context.TargetingKey;
     }
 
     private static bool Contains(IReadOnlyCollection<string>? values, string value)
