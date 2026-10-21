@@ -1,12 +1,25 @@
 version: 2
 updates:
   - package-ecosystem: "nuget"
-    directory: "/"
+    directory: "/FeatureFlags"
     target-branch: "main"
     schedule:
       interval: "weekly"
     groups:
       nuget-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "nuget"
+    directory: "/FeatureFlags.Tests"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+    groups:
+      nuget-test-dependencies:
         patterns:
           - "*"
         update-types:
